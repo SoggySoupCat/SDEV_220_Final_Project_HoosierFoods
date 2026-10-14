@@ -13,12 +13,12 @@
 * **Data Structures:** Uses Python dictionaries to look up inventory items by ID and lists to track overall activity histories.
 
 ## 2. Communication Plan
-* **Primary Platform:** Discord (for daily asynchronous updates, code sharing, and rapid troubleshooting).
-* **Meeting Schedule:** Weekly on Thursdays at 2:30 via Google Voice/Video to review progress, clear blockers, and assign new tasks for the upcoming week.
+* **Primary Platform:** Google Chats (for daily asynchronous updates, code sharing, and rapid troubleshooting).
+* **Meeting Schedule:** Weekly on Thursdays at 2:30 via Google Meets to review progress, clear blockers, and assign new tasks for the upcoming week.
 
 ## 3. Collaboration & Repository
-* **Version Control:** [GitHub Repository](#) *(Insert actual link here)*
-* **Project Management:** [Trello Board](#) *(Insert actual link here)*
+* **Version Control:** [GitHub Repository](#https://github.com/SoggySoupCat/SDEV_220_Final_Project_HoosierFoods)
+* **Project Management:** [Trello Board](#https://trello.com/b/GZfESS50/hoosier-hills-food-bank-inventory-system)
 
 ## 4. Team Roles & Responsibilities
 
