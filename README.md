@@ -17,8 +17,8 @@
 * **Meeting Schedule:** Weekly on Thursdays at 2:30 via Google Meets to review progress, clear blockers, and assign new tasks for the upcoming week.
 
 ## 3. Collaboration & Repository
-* **Version Control:** [GitHub Repository](*https://github.com/SoggySoupCat/SDEV_220_Final_Project_HoosierFoods)
-* **Project Management:** [Trello Board](*https://trello.com/b/GZfESS50/hoosier-hills-food-bank-inventory-system)
+* **Version Control:** [GitHub Repository](https://github.com/SoggySoupCat/SDEV_220_Final_Project_HoosierFoods)
+* **Project Management:** [Trello Board](https://trello.com/b/GZfESS50/hoosier-hills-food-bank-inventory-system)
 
 ## 4. Team Roles & Responsibilities
 
