@@ -1,7 +1,7 @@
 import tkinter as tk  
 from tkinter import ttk, messagebox  
   
-# Author: Ryan A Musick  
+# Author: Ryan Musick  
 # Role: GUI & Frontend Lead  
 # Project: Hoosier Hills Food Bank Inventory Management  
   
@@ -116,7 +116,7 @@ class FoodBankApp(tk.Tk):
         ttk.Label(report_frame, text="System Reporting & Activity Logs", style='Header.TLabel').pack(pady=20)  
          
     def validate_and_submit_item(self):  
-        """Handles user input validation before passing data to the backend."""  
+        """Handles user input validation and passes data to backend."""  
         item_name = self.item_name_entry.get().strip()  
         qty = self.qty_entry.get().strip()  
          
@@ -124,28 +124,36 @@ class FoodBankApp(tk.Tk):
         if not item_name:  
             messagebox.showerror("Input Error", "Item Name cannot be empty.")  
             return  
-          
         if not qty.isdigit():  
             messagebox.showerror("Input Error", "Quantity must be a valid number.")  
             return  
          
-        # Placeholder for instantiating Thomas's Item class and storing in the dictionary  
-        print(f"Success: Ready to instantiate Item('{item_name}', {qty}) and add to dictionary lookup.")  
+        qty = int(qty)
+        # Generate ID based on the backend dictionary length
+        new_id = f"ITM{len(backend.inventory) + 1:03d}"
+        
+        # Instantiate backend Item and store it in the global inventory dictionary
+        new_item = backend.Item(new_id, item_name, qty, "Uncategorized", "N/A")
+        backend.inventory[new_id] = new_item
+        
+        # Update the visual Treeview using the returned object
+        self.tree.insert('', tk.END, values=(new_item.name, new_item.quantity))
           
-        # Clear fields after successful entry  
+        # Clear fields 
         self.item_name_entry.delete(0, tk.END)  
         self.qty_entry.delete(0, tk.END)  
           
-        messagebox.showinfo("Success", f"Item '{item_name}' added successfully.")  
+        messagebox.showinfo("Success", f"Item '{item_name}' added successfully.") 
 
     def validate_and_log_donation(self):
-        """Handles user input validation for logging a donation before passing to backend."""
+        """Handles user input validation for logging a donation and passes to backend."""
         donor_name = self.donor_name_entry.get().strip()
-        item = self.donated_item_entry.get().strip()
+        contact_info = self.donor_contact_entry.get().strip()
+        item_name = self.donated_item_entry.get().strip()
         qty = self.donated_qty_entry.get().strip()
 
         # Input validation checks
-        if not donor_name or not item:
+        if not donor_name or not item_name:
             messagebox.showerror("Input Error", "Donor Name and Item Donated cannot be empty.")
             return
 
@@ -153,8 +161,34 @@ class FoodBankApp(tk.Tk):
             messagebox.showerror("Input Error", "Quantity must be a valid number.")
             return
 
-        # Placeholder for instantiating Thomas's Donor and Transaction classes
-        print(f"Success: Ready to create Transaction for {donor_name} donating {qty} of '{item}'.")
+        qty = int(qty)
+        current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+
+        # 1. Manage the Donor via backend global list
+        donor = next((d for d in backend.donor_history if d.name.lower() == donor_name.lower()), None)
+        if not donor:
+            donor_id = f"DNR{len(backend.donor_history) + 1:03d}"
+            donor = backend.Donor(donor_id, donor_name, contact_info)
+            backend.donor_history.append(donor)
+        else:
+            donor_id = donor.donor_id
+
+        # 2. Manage the Inventory Item via backend global dictionary
+        found_item = next((i for i in backend.inventory.values() if i.name.lower() == item_name.lower()), None)
+        if found_item:
+            found_item.update_quantity(qty)
+            item_id = found_item.item_id
+        else:
+            item_id = f"ITM{len(backend.inventory) + 1:03d}"
+            new_item = backend.Item(item_id, item_name, qty, "Uncategorized", "N/A")
+            backend.inventory[item_id] = new_item
+
+        # 3. Create Transaction, log it, and append to Donor history
+        trans_id = f"TRX{len(backend.transaction_history) + 1:03d}"
+        transaction = backend.Transaction(trans_id, "Incoming", item_id, qty, current_date, donor_id)
+        
+        transaction.log_transaction()
+        donor.add_donation(item_id, qty, current_date)
         
         # Clear fields after successful entry
         self.donor_name_entry.delete(0, tk.END)
