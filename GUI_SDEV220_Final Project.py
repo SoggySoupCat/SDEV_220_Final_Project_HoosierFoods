@@ -138,18 +138,49 @@ class FoodBankApp(tk.Tk):
         """Builds the reporting and activity history tab."""  
         report_frame = ttk.Frame(self.notebook, padding="20 20 20 20")  
         self.notebook.add(report_frame, text="Reporting")  
+        
+        report_frame.columnconfigure(0, weight=1)
           
-        ttk.Label(report_frame, text="System Reporting & Activity Logs", style='Header.TLabel').pack(pady=20)  
+        ttk.Label(report_frame, text="System Reporting & Activity Logs", style='Header.TLabel').grid(row=0, column=0, pady=(0, 20), sticky='w')  
 
-    def refresh_inventory_table(self):
-        """Clears the Treeview and repopulates it from the backend inventory."""
-        # Delete all existing rows in the display table
+        # Treeview for Transaction History
+        columns = ('date', 'type', 'item', 'qty', 'entity')
+        self.report_tree = ttk.Treeview(report_frame, columns=columns, show='headings', height=15)
+        
+        self.report_tree.heading('date', text='Date')
+        self.report_tree.heading('type', text='Type')
+        self.report_tree.heading('item', text='Item ID')
+        self.report_tree.heading('qty', text='Qty')
+        self.report_tree.heading('entity', text='Entity/Donor')
+        
+        self.report_tree.column('date', width=100, anchor='center')
+        self.report_tree.column('type', width=100, anchor='center')
+        self.report_tree.column('item', width=100, anchor='center')
+        self.report_tree.column('qty', width=50, anchor='center')
+        self.report_tree.column('entity', width=150)
+        
+        self.report_tree.grid(row=1, column=0, sticky='nsew', pady=10)
+        report_frame.rowconfigure(1, weight=1)
+
+    def refresh_all_tables(self):
+        """Clears and repopulates all Treeviews from the backend data."""
+        # Refresh Inventory Table
         for row in self.tree.get_children():
             self.tree.delete(row)
-            
-        # Loop through the backend dictionary and insert current data
         for item in backend.inventory.values():
             self.tree.insert('', tk.END, values=(item.name, item.quantity))
+            
+        # Refresh Reporting Table
+        for row in self.report_tree.get_children():
+            self.report_tree.delete(row)
+        for txn in backend.transaction_history:
+            self.report_tree.insert('', tk.END, values=(
+                txn.date, 
+                txn.trans_type, 
+                txn.item_id, 
+                txn.quantity, 
+                txn.partner_or_donor_id
+            ))
          
     def validate_and_submit_item(self):  
         """Handles user input validation and passes data to backend."""  
@@ -172,8 +203,8 @@ class FoodBankApp(tk.Tk):
         new_item = backend.Item(new_id, item_name, qty, "Uncategorized", "N/A")
         backend.inventory[new_id] = new_item
         
-        # Update the visual Treeview using the refresh method
-        self.refresh_inventory_table()
+        # Update the visual Treeviews
+        self.refresh_all_tables()
           
         # Clear fields 
         self.item_name_entry.delete(0, tk.END)  
@@ -226,8 +257,8 @@ class FoodBankApp(tk.Tk):
         transaction.log_transaction()
         donor.add_donation(item_id, qty, current_date)
         
-        # Update the visual Treeview
-        self.refresh_inventory_table()
+        # Update the visual Treeviews
+        self.refresh_all_tables()
 
         # Clear fields after successful entry
         self.donor_name_entry.delete(0, tk.END)
@@ -286,8 +317,8 @@ class FoodBankApp(tk.Tk):
         transaction = backend.Transaction(trans_id, trans_type, item_id, qty, current_date, entity)
         transaction.log_transaction()
 
-        # Instantly update the visual table on the Stock Entry tab
-        self.refresh_inventory_table()
+        # Instantly update the visual Treeviews
+        self.refresh_all_tables()
 
         # Clear fields
         self.trans_item_entry.delete(0, tk.END)
