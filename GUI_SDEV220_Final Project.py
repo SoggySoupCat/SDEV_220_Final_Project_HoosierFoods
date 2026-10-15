@@ -103,17 +103,53 @@ class FoodBankApp(tk.Tk):
          
     def create_transaction_frame(self):  
         """Builds the incoming/outgoing distribution tab."""  
-        trans_frame = ttk.Frame(self.notebook)  
+        trans_frame = ttk.Frame(self.notebook, padding="20 20 20 20")  
         self.notebook.add(trans_frame, text="Transactions")  
-          
-        ttk.Label(trans_frame, text="Process Incoming & Outgoing Distributions", style='Header.TLabel').pack(pady=20)  
+        
+        # Configure grid column weights for responsive expansion
+        trans_frame.columnconfigure(1, weight=1)
+
+        # Header
+        ttk.Label(trans_frame, text="Process a Transaction", style='Header.TLabel').grid(row=0, column=0, columnspan=2, pady=(0, 20), sticky='w')  
+        
+        # Input fields
+        ttk.Label(trans_frame, text="Transaction Type:").grid(row=1, column=0, pady=10, sticky='e')
+        self.trans_type_combo = ttk.Combobox(trans_frame, values=["Incoming", "Outgoing"], state="readonly", width=37)
+        self.trans_type_combo.grid(row=1, column=1, padx=10, pady=10, sticky='we')
+        self.trans_type_combo.set("Outgoing")  # Set default value
+
+        ttk.Label(trans_frame, text="Item Name:").grid(row=2, column=0, pady=10, sticky='e')
+        self.trans_item_entry = ttk.Entry(trans_frame, width=40)
+        self.trans_item_entry.grid(row=2, column=1, padx=10, pady=10, sticky='we')
+
+        ttk.Label(trans_frame, text="Quantity:").grid(row=3, column=0, pady=10, sticky='e')
+        self.trans_qty_entry = ttk.Entry(trans_frame, width=40)
+        self.trans_qty_entry.grid(row=3, column=1, padx=10, pady=10, sticky='we')
+
+        ttk.Label(trans_frame, text="Partner/Donor Name:").grid(row=4, column=0, pady=10, sticky='e')
+        self.trans_entity_entry = ttk.Entry(trans_frame, width=40)
+        self.trans_entity_entry.grid(row=4, column=1, padx=10, pady=10, sticky='we')
+
+        # Submit button
+        process_btn = ttk.Button(trans_frame, text="Process Transaction", command=self.validate_and_process_transaction)
+        process_btn.grid(row=5, column=0, columnspan=2, pady=30)
          
     def create_reporting_frame(self):  
         """Builds the reporting and activity history tab."""  
-        report_frame = ttk.Frame(self.notebook)  
+        report_frame = ttk.Frame(self.notebook, padding="20 20 20 20")  
         self.notebook.add(report_frame, text="Reporting")  
           
         ttk.Label(report_frame, text="System Reporting & Activity Logs", style='Header.TLabel').pack(pady=20)  
+
+    def refresh_inventory_table(self):
+        """Clears the Treeview and repopulates it from the backend inventory."""
+        # Delete all existing rows in the display table
+        for row in self.tree.get_children():
+            self.tree.delete(row)
+            
+        # Loop through the backend dictionary and insert current data
+        for item in backend.inventory.values():
+            self.tree.insert('', tk.END, values=(item.name, item.quantity))
          
     def validate_and_submit_item(self):  
         """Handles user input validation and passes data to backend."""  
@@ -136,8 +172,8 @@ class FoodBankApp(tk.Tk):
         new_item = backend.Item(new_id, item_name, qty, "Uncategorized", "N/A")
         backend.inventory[new_id] = new_item
         
-        # Update the visual Treeview using the returned object
-        self.tree.insert('', tk.END, values=(new_item.name, new_item.quantity))
+        # Update the visual Treeview using the refresh method
+        self.refresh_inventory_table()
           
         # Clear fields 
         self.item_name_entry.delete(0, tk.END)  
@@ -157,14 +193,14 @@ class FoodBankApp(tk.Tk):
             messagebox.showerror("Input Error", "Donor Name and Item Donated cannot be empty.")
             return
 
-        if not qty.isdigit():
-            messagebox.showerror("Input Error", "Quantity must be a valid number.")
+        if not qty.isdigit() or int(qty) <= 0:
+            messagebox.showerror("Input Error", "Quantity must be a valid positive number.")
             return
 
         qty = int(qty)
         current_date = datetime.datetime.now().strftime("%Y-%m-%d")
 
-        # 1. Manage the Donor via backend global list
+        # Manage the Donor via backend global list
         donor = next((d for d in backend.donor_history if d.name.lower() == donor_name.lower()), None)
         if not donor:
             donor_id = f"DNR{len(backend.donor_history) + 1:03d}"
@@ -173,7 +209,7 @@ class FoodBankApp(tk.Tk):
         else:
             donor_id = donor.donor_id
 
-        # 2. Manage the Inventory Item via backend global dictionary
+        # Manage the Inventory Item via backend global dictionary
         found_item = next((i for i in backend.inventory.values() if i.name.lower() == item_name.lower()), None)
         if found_item:
             found_item.update_quantity(qty)
@@ -183,13 +219,16 @@ class FoodBankApp(tk.Tk):
             new_item = backend.Item(item_id, item_name, qty, "Uncategorized", "N/A")
             backend.inventory[item_id] = new_item
 
-        # 3. Create Transaction, log it, and append to Donor history
+        # Create Transaction, log it, and append to Donor history
         trans_id = f"TRX{len(backend.transaction_history) + 1:03d}"
         transaction = backend.Transaction(trans_id, "Incoming", item_id, qty, current_date, donor_id)
         
         transaction.log_transaction()
         donor.add_donation(item_id, qty, current_date)
         
+        # Update the visual Treeview
+        self.refresh_inventory_table()
+
         # Clear fields after successful entry
         self.donor_name_entry.delete(0, tk.END)
         self.donor_contact_entry.delete(0, tk.END)
@@ -197,6 +236,65 @@ class FoodBankApp(tk.Tk):
         self.donated_qty_entry.delete(0, tk.END)
 
         messagebox.showinfo("Success", f"Donation from '{donor_name}' logged successfully.")
+
+    def validate_and_process_transaction(self):
+        """Handles user input validation and logs incoming/outgoing distributions."""
+        trans_type = self.trans_type_combo.get()
+        item_name = self.trans_item_entry.get().strip()
+        qty = self.trans_qty_entry.get().strip()
+        entity = self.trans_entity_entry.get().strip()
+
+        # Input validation
+        if not trans_type or not item_name or not entity:
+            messagebox.showerror("Input Error", "All fields must be filled out.")
+            return
+
+        if not qty.isdigit() or int(qty) <= 0:
+            messagebox.showerror("Input Error", "Quantity must be a positive number.")
+            return
+
+        qty = int(qty)
+        current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+
+        # Find the item in the backend inventory
+        found_item = next((i for i in backend.inventory.values() if i.name.lower() == item_name.lower()), None)
+
+        if trans_type == "Outgoing":
+            if not found_item:
+                messagebox.showerror("Inventory Error", f"Item '{item_name}' does not exist in inventory.")
+                return
+            if found_item.quantity < qty:
+                messagebox.showerror("Inventory Error", f"Not enough '{item_name}' in stock. Current quantity: {found_item.quantity}")
+                return
+            
+            # Subtract stock using backend update_quantity method
+            found_item.update_quantity(-qty)
+            item_id = found_item.item_id
+            
+        elif trans_type == "Incoming":
+            if found_item:
+                found_item.update_quantity(qty)
+                item_id = found_item.item_id
+            else:
+                # Create new item if it doesn't exist
+                item_id = f"ITM{len(backend.inventory) + 1:03d}"
+                new_item = backend.Item(item_id, item_name, qty, "Uncategorized", "N/A")
+                backend.inventory[item_id] = new_item
+
+        # Create and log transaction 
+        trans_id = f"TRX{len(backend.transaction_history) + 1:03d}"
+        transaction = backend.Transaction(trans_id, trans_type, item_id, qty, current_date, entity)
+        transaction.log_transaction()
+
+        # Instantly update the visual table on the Stock Entry tab
+        self.refresh_inventory_table()
+
+        # Clear fields
+        self.trans_item_entry.delete(0, tk.END)
+        self.trans_qty_entry.delete(0, tk.END)
+        self.trans_entity_entry.delete(0, tk.END)
+
+        messagebox.showinfo("Success", f"{trans_type} transaction for '{item_name}' processed successfully.")
          
 if __name__ == "__main__":  
     app = FoodBankApp()  
